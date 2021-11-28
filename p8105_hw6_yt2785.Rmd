@@ -1,0 +1,193 @@
+---
+title: "p8105 hw6 yt2785"
+author: Yijing Tao (UNI yt2785)
+date: Nov 2021
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(mgcv)
+
+set.seed(1)
+```
+
+## Problem 1
+
+Read and clean the data.
+```{r}
+#read csv
+birthweight_df = 
+  read_csv("./birthweight.csv") %>% 
+  mutate(
+    babysex = recode(babysex, '1' = "male", '2' = "female"),
+    babysex = as.factor(babysex),
+    frace = recode(frace, '1' = "white", '2' = "black", '3' = "asian", '4' = "puerto_rican", '8' = "other", '9' = "unknown"),
+    frace = as.factor(frace),
+    malform = recode(malform, '0' = "absent", '1' = "present"),
+    malform = as.factor(malform),
+    mrace = recode(mrace, '1' = "white", '2' = "black", '3' = "asian", '4' = "puerto_rican", '8' = "other"),
+    mrace = as.factor(mrace)
+  )
+
+#check whether there are missing datas
+any(is.na(birthweight_df))
+```
+
+```{r}
+birthweight_df %>% 
+  ggplot(aes(x = bhead, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = blength, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = delwt, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = fincome, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = gaweeks, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = menarche, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = mheight, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = momage, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = parity, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = pnumlbw, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = pnumsga, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = ppbmi, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = ppwt, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = smoken, y = bwt)) + 
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = wtgain, y = bwt)) + 
+  geom_point()
+```
+
+From the plots above we can infer that the birthweight is only related to `bhead` and `blength`.
+
+```{r}
+fit_null1 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt1 = lm(bwt ~ bhead + blength + delwt, data = birthweight_df)
+
+anova(fit_null1, fit_alt1) %>% 
+  broom::tidy()
+
+fit_null2 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt2 = lm(bwt ~ bhead + blength + fincome, data = birthweight_df)
+
+anova(fit_null2, fit_alt2) %>% 
+  broom::tidy()
+
+fit_null3 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt3 = lm(bwt ~ bhead + blength + gaweeks, data = birthweight_df)
+
+anova(fit_null3, fit_alt3) %>% 
+  broom::tidy()
+
+fit_null4 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt4 = lm(bwt ~ bhead + blength + menarche, data = birthweight_df)
+
+anova(fit_null4, fit_alt4) %>% 
+  broom::tidy()
+
+fit_null5 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt5 = lm(bwt ~ bhead + blength + mheight, data = birthweight_df)
+
+anova(fit_null5, fit_alt5) %>% 
+  broom::tidy()
+
+fit_null6 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt6 = lm(bwt ~ bhead + blength + momage, data = birthweight_df)
+
+anova(fit_null6, fit_alt6) %>% 
+  broom::tidy()
+
+fit_null7 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt7 = lm(bwt ~ bhead + blength + parity, data = birthweight_df)
+
+anova(fit_null7, fit_alt7) %>% 
+  broom::tidy()
+
+fit_null8 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt8 = lm(bwt ~ bhead + blength + pnumlbw, data = birthweight_df)
+
+anova(fit_null8, fit_alt8) %>% 
+  broom::tidy()
+
+fit_null10 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt10 = lm(bwt ~ bhead + blength + ppbmi, data = birthweight_df)
+
+anova(fit_null10, fit_alt10) %>% 
+  broom::tidy()
+
+fit_null11 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt11 = lm(bwt ~ bhead + blength + ppwt, data = birthweight_df)
+
+anova(fit_null11, fit_alt11) %>% 
+  broom::tidy()
+
+fit_null12 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt12 = lm(bwt ~ bhead + blength + smoken, data = birthweight_df)
+
+anova(fit_null12, fit_alt12) %>% 
+  broom::tidy()
+
+fit_null13 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt13 = lm(bwt ~ bhead + blength + wtgain, data = birthweight_df)
+
+anova(fit_null13, fit_alt13) %>% 
+  broom::tidy()
+```
+
+Since we can reject the null hypothesis only when p.value is extremly small,  from the anova outcome above we can learn that `bhead`, `blength`, `delwt`, `fincome`, `gaweeks`, `mheigth`, `momage`, `ppwt`, `wtgain` are related to bwt.
+
+Found the model
+
+```{r}
+fit = lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + wtgain, data = birthweight_df) 
+
+bwt_res_pred_df = 
+  birthweight_df %>% 
+  modelr::add_predictions(fit) %>% 
+  modelr::add_residuals(fit) 
+
+bwt_res_pred_df %>% 
+  ggplot(aes(x = bwt, y = pred)) + 
+  geom_point() +
+  geom_smooth()
+```
+
