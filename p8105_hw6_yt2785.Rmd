@@ -35,6 +35,8 @@ birthweight_df =
 any(is.na(birthweight_df))
 ```
 
+Make the plots showing all of the relationships between numeric variables and birthweight.
+
 ```{r}
 birthweight_df %>% 
   ggplot(aes(x = bhead, y = bwt)) + 
@@ -97,7 +99,9 @@ birthweight_df %>%
   geom_point()
 ```
 
-From the plots above we can infer that the birthweight is only related to `bhead` and `blength`.
+From the plots above we can infer that the birthweight is most related to `bhead` and `blength`.
+
+### Hypothesis testing
 
 ```{r}
 fit_null1 = lm(bwt ~ bhead + blength, data = birthweight_df)
@@ -173,21 +177,146 @@ anova(fit_null13, fit_alt13) %>%
   broom::tidy()
 ```
 
-Since we can reject the null hypothesis only when p.value is extremly small,  from the anova outcome above we can learn that `bhead`, `blength`, `delwt`, `fincome`, `gaweeks`, `mheigth`, `momage`, `ppwt`, `wtgain` are related to bwt.
+Since we can reject the null hypothesis only when p.value is extremly small,  from the anova outcome above we can learn that `bhead`, `blength`, `delwt`, `fincome`, `gaweeks`, `mheigth`, `momage`, `ppwt`, `wtgain` are related to birthweight(bwt).
 
-Found the model
+### Found the model and show a plot of model residuals against fitted values
 
 ```{r}
-fit = lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + wtgain, data = birthweight_df) 
+model_1 = lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + wtgain, data = birthweight_df) 
 
-bwt_res_pred_df = 
+bwt_res_pred_df_1 = 
   birthweight_df %>% 
-  modelr::add_predictions(fit) %>% 
-  modelr::add_residuals(fit) 
+  modelr::add_predictions(model_1) %>% 
+  modelr::add_residuals(model_1) 
 
-bwt_res_pred_df %>% 
-  ggplot(aes(x = bwt, y = pred)) + 
+  bwt_res_pred_df_1 %>% 
+  ggplot(aes(y = resid, x = pred)) + 
   geom_point() +
-  geom_smooth()
+  geom_smooth(method = lm)
 ```
 
+### Cross Validitation to compare the 3 models.
+```{r}
+cv_df = crossv_mc(birthweight_df, 100) %>% 
+  mutate(
+    model_1 = map(train, ~lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + wtgain, data = .x)),
+    model_2 = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    model_3 = map(train, ~lm(bwt ~ bhead + blength + babysex + 
+               bhead * blength + bhead * babysex + blength * babysex + 
+               bhead * blength * babysex, data = .x))
+  ) %>% 
+  mutate(
+    rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+    rmse_model_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)),
+    rmse_model_3 = map2_dbl(model_3, test, ~rmse(model = .x, data = .y)))
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+Among these 3 models, the model I built above (model_1) has the least rmse in total, which means this model is the better one compared to the other 2 given in the problem.
+
+## Problem 2
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+### Using bootstrap to get the sample
+```{r}
+sample_df = 
+  function(df) {
+  sample_frac(df, size = 1, replace = TRUE)
+}
+
+boot_strap_df = 
+  tibble(
+    strap_number = 1:5000,
+    strap_sample = rerun(5000, sample_df(weather_df))
+  )
+```
+
+### r^2
+```{r}
+adj_r_square_df = 
+  boot_strap_df %>% 
+  mutate(
+    models = map(.x = strap_sample, ~lm(tmax ~ tmin, data = .x)),
+    glance = map(models, broom::glance)
+  ) %>% 
+  select(strap_number, glance) %>% 
+  unnest(glance)
+
+ci_r_square = 
+  adj_r_square_df %>% 
+  summarize(
+    ci_lower = quantile(adj.r.squared, 0.025), 
+    ci_upper = quantile(adj.r.squared, 0.975)) %>% 
+  round(digits = 3)
+
+adj_r_square_df
+adj_r_square_df %>% 
+  ggplot(aes(x = adj.r.squared)) +
+  geom_density() +
+  labs(
+        title = "Distribution of R Squared",
+        x = "R Squared"
+    ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+The distribution of `r^2` approximately follows a normal distribution, with a center around 0.91. The 95% confidence interval for r-squared distribution is `r ci_r_square`.
+
+### log(B0 * B1)
+```{r}
+log_df = 
+    boot_strap_df %>% 
+  mutate(
+    models = map(.x = strap_sample, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results) %>% 
+  select(term, estimate) %>% 
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+    ) %>% 
+  unnest(cols = c(`(Intercept)`, tmin)) %>% 
+  rename(B0 = "(Intercept)",
+         B1 = tmin) %>% 
+  mutate(value = log(B0 * B1))
+
+ci_log = 
+  log_df %>% 
+  summarize(
+    ci_lower = quantile(value, 0.025), 
+    ci_upper = quantile(value, 0.975)) %>% 
+  round(digits = 3)
+
+log_df
+log_df %>% 
+  ggplot(aes(x = value)) +
+  geom_density() +
+  labs(
+        title = "Distribution of log(B0 * B1)",
+        x = "log(B0*B1)"
+    ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+The log function plot generally follows a normal distribution, with a center around 2.01. The confidence interval of the log function is `r ci_log`.
