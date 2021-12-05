@@ -5,7 +5,7 @@ date: Nov 2021
 output: github_document
 ---
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(tidyverse)
 library(modelr)
 library(mgcv)
@@ -16,7 +16,7 @@ set.seed(1)
 ## Problem 1
 
 Read and clean the data.
-```{r}
+```{r warning=FALSE}
 #read csv
 birthweight_df = 
   read_csv("./birthweight.csv") %>% 
@@ -32,12 +32,14 @@ birthweight_df =
   )
 
 #check whether there are missing datas
-any(is.na(birthweight_df))
+na_bwt = any(is.na(birthweight_df))
 ```
 
-Make the plots showing all of the relationships between numeric variables and birthweight.
+Transform `babysex`, `frace`, `malform` and `mrace` variables into factor variables. And the answer of having missing data or not is `r na_bwt`, which means there is no missing data in this data set.
 
-```{r}
+*Make the plots showing all of the relationships between numeric variables and birthweight.*
+
+```{r warning=FALSE}
 birthweight_df %>% 
   ggplot(aes(x = bhead, y = bwt)) + 
   geom_point()
@@ -101,9 +103,9 @@ birthweight_df %>%
 
 From the plots above we can infer that the birthweight is most related to `bhead` and `blength`.
 
-### Hypothesis testing
+*Hypothesis testing*
 
-```{r}
+```{r warning=FALSE}
 fit_null1 = lm(bwt ~ bhead + blength, data = birthweight_df)
 fit_alt1 = lm(bwt ~ bhead + blength + delwt, data = birthweight_df)
 
@@ -175,13 +177,19 @@ fit_alt13 = lm(bwt ~ bhead + blength + wtgain, data = birthweight_df)
 
 anova(fit_null13, fit_alt13) %>% 
   broom::tidy()
+
+fit_null14 = lm(bwt ~ bhead + blength, data = birthweight_df)
+fit_alt14 = lm(bwt ~ bhead + blength + pnumsga, data = birthweight_df)
+
+anova(fit_null14, fit_alt14) %>% 
+  broom::tidy()
 ```
 
 Since we can reject the null hypothesis only when p.value is extremly small,  from the anova outcome above we can learn that `bhead`, `blength`, `delwt`, `fincome`, `gaweeks`, `mheigth`, `momage`, `ppwt`, `wtgain` are related to birthweight(bwt).
 
-### Found the model and show a plot of model residuals against fitted values
+*Found the model and show a plot of model residuals against fitted values*
 
-```{r}
+```{r warning=FALSE}
 model_1 = lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + wtgain, data = birthweight_df) 
 
 bwt_res_pred_df_1 = 
@@ -192,11 +200,11 @@ bwt_res_pred_df_1 =
   bwt_res_pred_df_1 %>% 
   ggplot(aes(y = resid, x = pred)) + 
   geom_point() +
-  geom_smooth(method = lm)
+  geom_smooth(se = F, method = lm)
 ```
 
-### Cross Validitation to compare the 3 models.
-```{r}
+*Cross Validitation to compare the 3 models.*
+```{r warning=FALSE}
 cv_df = crossv_mc(birthweight_df, 100) %>% 
   mutate(
     model_1 = map(train, ~lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + wtgain, data = .x)),
@@ -224,7 +232,7 @@ Among these 3 models, the model I built above (model_1) has the least rmse in to
 
 ## Problem 2
 
-```{r}
+```{r warning=FALSE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -238,8 +246,8 @@ weather_df =
   select(name, id, everything())
 ```
 
-### Using bootstrap to get the sample
-```{r}
+*Using bootstrap to get the sample*
+```{r warning=FALSE}
 sample_df = 
   function(df) {
   sample_frac(df, size = 1, replace = TRUE)
@@ -252,8 +260,8 @@ boot_strap_df =
   )
 ```
 
-### r^2
-```{r}
+*r^2*
+```{r warning=FALSE}
 adj_r_square_df = 
   boot_strap_df %>% 
   mutate(
@@ -268,7 +276,7 @@ ci_r_square =
   summarize(
     ci_lower = quantile(adj.r.squared, 0.025), 
     ci_upper = quantile(adj.r.squared, 0.975)) %>% 
-  round(digits = 3)
+  round(digits = 2)
 
 adj_r_square_df
 adj_r_square_df %>% 
@@ -282,8 +290,8 @@ adj_r_square_df %>%
 ```
 The distribution of `r^2` approximately follows a normal distribution, with a center around 0.91. The 95% confidence interval for r-squared distribution is `r ci_r_square`.
 
-### log(B0 * B1)
-```{r}
+*log(B0 B1) *
+```{r warning=FALSE}
 log_df = 
     boot_strap_df %>% 
   mutate(
@@ -307,7 +315,7 @@ ci_log =
   summarize(
     ci_lower = quantile(value, 0.025), 
     ci_upper = quantile(value, 0.975)) %>% 
-  round(digits = 3)
+  round(digits = 2)
 
 log_df
 log_df %>% 
